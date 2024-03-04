@@ -12,7 +12,6 @@ app = Flask(__name__)
 load_dotenv()  # take environment variables from .env.
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-print(OPENAI_API_KEY)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -22,6 +21,13 @@ EMBEDDING_MODEL = "text-embedding-ada-002"
 COMPLETIONS_MODEL = "gpt-3.5-turbo"
 
 df  = pd.read_csv('dataset.csv')
+
+# Uncomment below if you need to make title column content unique
+# # Add incrementing numbers to all rows in the "heading" column
+# df['title'] = df['title'] + (df.index + 1).astype(str)
+
+# # Save the updated DataFrame back to the CSV file
+# df.to_csv('your_updated_file.csv', index=False)
 
 # Check if "tokens" column exists in the DataFrame
 if 'tokens' not in df.columns:
