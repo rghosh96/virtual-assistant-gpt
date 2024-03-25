@@ -23,6 +23,15 @@ COMPLETIONS_MODEL = "gpt-3.5-turbo"
 
 df  = pd.read_csv('dataset.csv')
 
+CAT_prompt_control = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+CAT_prompt_approxmiation = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Make your language/communication patterns more/less similar to the user; for example, you can apply to lexical, phonetic, morphological features. Accommodate your language & speech patterns  to become more similar to the user’s speech pattern. Example strategies: lexical mimicry; using similar expressions & linguistic styles; Change the way you speak– to match the user’s manner of speaking - more casual or formal depending on user’s manner; Use the same expressions as the user. Remember to adapt dynamically based on each user interaction.  If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+CAT_prompt_interpretability = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Accommodate your responses to the user’s perceived/expressed ability to understand what’s happening in the conversation. Make adjustments to promote message comprehension (for example, taking into account receiver’s lack of language proficiency or social knowledge). Example strategies: modifying complexity of speech; increasing clarity; attending to topic familiarity; Avoid using medical/technical terms that the user might not understand; Try to understand the user’s background so you can adjust the terminology you use when explaining information; Make changes to the level of language used, depending on the user’s background and understanding of medical/technical terms; Use easy to understand language and simple phrasing. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+CAT_prompt_interpersonalcontrol = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Adapt your communication based on role relations, relative power, & status. Do not opt to exert power, control discretion of other, or direct the communication. Focus on existing role relations & especially relate to language (for example, honorifics) to either acknowledge, legitimate, to diffuse power differentials. Example strategies: Make sure users know about available resources they should contact/look into if they have further questions/issues with the topic being discussed; Empower users to take responsibility for their own health; Respectfully redirect conversations back on topic if the user has wandered off topic; Ask the user at the start of the conversation if they have any questions about the topic they would like to discuss. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+CAT_prompt_discoursemanagement = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Adjust your communication based on perceived or stated conversational needs of the user. Take the user’s social & conversational needs into consideration, for example, topic selection & face management. Example strategies: question phrasing;  pauses; interruptions; facilitating user contribution; Do not rush the user during the conversation as they need time to process the information given, and come up with any questions; Make sure the conversation is well paced with enough pauses so the user can ask questions; Ask the user open-ended questions to engage them in the conversation; When giving information, often pause and prompt with a simple “OK?” or something similar to make sure they understand. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+CAT_prompt_emotionalexpression = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Respond to the user’s cognized or reported emotional/relational needs. Accommodate the user’s affective state by providing social support, affection, and legitimation of other’s emotional dilemmas. Example strategies: When a user is worried, respond in a caring way to make sure they know you understand their concerns; Speak to the user in a respectful and courteous manner; When speaking to the user, use verbal communication to demonstrate that you care about what they say. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 tokens or less."
+
+selected_prompt = ''
+
 # Check if "tokens" column exists in the DataFrame
 if 'tokens' not in df.columns:
     # Initialize the encoder for the GPT-4 model
@@ -139,9 +148,9 @@ def answer_with_gpt(
     document_embeddings: dict[(str, str), np.array],
     show_prompt: bool = False
 ) -> str:
-    info = "You are a virtual healthcare assistant, only answer the question by using the provided context. Keep your responses to 1-2 sentences and be sure to directly address the user’s message. If a user asks something out of the provided context, let them know you can't answer."
+    print("AB TO ANSWER WITH GPT, selected_prompt is:", selected_prompt)
     messages = [
-        {"role" : "system", "content": info}
+        {"role" : "system", "content": selected_prompt}
     ]
     prompt, section_lenght = construct_prompt(
         query,
@@ -160,7 +169,8 @@ def answer_with_gpt(
     messages.append({"role" : "user", "content":context})
     response = client.chat.completions.create(
         model=COMPLETIONS_MODEL,
-        messages=messages
+        messages=messages,
+        max_tokens=100
         )
     
     audioResponse = client.audio.speech.create(
@@ -176,12 +186,33 @@ def answer_with_gpt(
 
     return '\n' + response.choices[0].message.content, audio_response
 
-# prompt = "What is amoxycillan?"
-# response, sections_tokens = answer_with_gpt(prompt, df, document_embeddings)
-# print(response)
+def check_condition(argument):
+    if argument == '0':
+        print("CAT_prompt_control")
+        return CAT_prompt_control
+    elif argument == '1':
+        print("CAT_prompt_approxmiation")
+        return CAT_prompt_approxmiation
+    elif argument == '2':
+        print("CAT_prompt_interpretability")
+        return CAT_prompt_interpretability
+    elif argument == '3':
+        print("CAT_prompt_interpersonalcontrol")
+        return CAT_prompt_interpersonalcontrol
+    elif argument == '4':
+        print("CAT_prompt_discoursemanagement")
+        return CAT_prompt_discoursemanagement
+    elif argument == '5':
+        print("CAT_prompt_emotionalexpression")
+        return CAT_prompt_emotionalexpression
+    else:
+        return CAT_prompt_control
 
 @app.route('/')
 def index():
+    strategy = request.args.get('c')
+    selected_prompt = check_condition(strategy)
+    print('selected_prompt is:', selected_prompt)
     return render_template('index.html')
 
 @app.route('/api/chatbot', methods=['POST'])
@@ -197,39 +228,6 @@ def chatbot():
     audio_data_url = f"data:audio/wav;base64,{audio_base64}"
     
     return jsonify({'message': text_response, 'audio': audio_data_url})
-
-# def get_chatbot_response(message):
-#     # prompt = "You are a healthcare assistant who is educating people on clinical trials. Your knowledge is limited to NIH and clinicaltrials.gov information (including research studies). Keep your responses to 1-2 sentences. If a user asks something out of context, let them know you can't answer and prompt them to ask a different question about clinical trials. Here's the user's message: " + message
-#     response, sections_tokens = answer_with_gpt(message, df, document_embeddings)
-#     print(response)
-#     try:
-#         chat_completion = client.chat.completions.create(
-#             messages=[
-#                 {
-#                     "role": "user",
-#                     "content": prompt,
-#                 }
-#             ],
-#             model="gpt-3.5-turbo",
-#         )
-#         print("GOT IT")
-#         print(chat_completion.choices[0].message.content)
-
-#         response = client.audio.speech.create(
-#             model="tts-1",
-#             voice="nova",
-#             input=chat_completion.choices[0].message.content,
-#         )
-
-#         response.stream_to_file("output.mp3")
-
-#         with open("output.mp3", "rb") as audio_file:
-#             audio_response = audio_file.read()
-
-#         return chat_completion.choices[0].message.content, audio_response
-#     except Exception as e:
-#         print("Error:", e)
-#         return "Sorry, I couldn't process your request at the moment."
 
 if __name__ == '__main__':
     app.run(debug=True)
