@@ -10,6 +10,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <!-- Modal box -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <h3>Welcome!</h3>
+            <p>You are about to begin your conversation with ALEX. You will talk to ALEX using a chatbox. ALEX will respond to you in the chatbox, and speak to you. When you're ready to begin, click "Let's start!"</p>
+            <button class="start" onclick="closeModal()">Let's start!</button> <!-- Button to close the modal -->
+        </div>
+    </div>
     <div class="conversation-container">
         <div class="alex-container">
             <video id="myVideo">
