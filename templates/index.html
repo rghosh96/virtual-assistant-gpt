@@ -14,7 +14,10 @@
     <div id="myModal" class="modal">
         <div class="modal-content">
             <h3>Welcome!</h3>
-            <p>You are about to begin your conversation with ALEX. You will talk to ALEX using a chatbox. ALEX will respond to you in the chatbox, and speak to you. When you're ready to begin, click "Let's start!"</p>
+            <p>You are about to begin your conversation with Alex. You will talk to ALEX by typing in the chatbox. Alex will respond to you in the chatbox and speak to you, so make sure your audio is on!</p>
+            <p>When you are finished talking to Alex, click the "Finish Talking to Alex" button in the bottom right corner</p>
+            <p><strong>When you're ready to begin, click "Let's start!" button below.</strong></p>
+            <br/>
             <button class="start" onclick="closeModal()">Let's start!</button> <!-- Button to close the modal -->
         </div>
     </div>
@@ -35,6 +38,8 @@
             </div>
         </div>
     </div>
+
+    <button class="finish-button" onclick="logTranscript()">Finish Talking to Alex</button>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

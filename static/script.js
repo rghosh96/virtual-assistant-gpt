@@ -184,7 +184,7 @@ function sendMessage() {
 
 window.onload = function() {
     console.log("IN ON LOAD")
-    let userMessage = "Introduce yourself as Alex, an AI virtual healthcare assistant. What are the kinds of questions you can answer? Keep your response short, less than 75 tokens."
+    let userMessage = "Hey! Please introduce yourself. What are the kinds of questions you can answer (3 maximum)?"
     // Actions to be performed when the page is fully loaded
     const ellipse = document.createElement('div');
     ellipse.className = "lds-ellipsis";
@@ -217,4 +217,21 @@ window.onload = function() {
         ellipse.remove();
     });
   };
+
+  function logTranscript() {
+    console.log("IN LOG TRANSCRIPT!")
+    fetch('/api/transcript', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("logged to file")
+    })
+    .catch(error => console.error('Error:', error))
+    .finally(() => {
+        // Remove loading indicator after response received
+        console.log("check for transcript file")
+    });
+  }
   

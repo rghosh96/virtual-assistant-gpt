@@ -233,3 +233,11 @@ video {
     text-decoration: none;
     cursor: pointer;
 }
+
+.finish-button {
+  position: absolute;
+  bottom: 15px;
+  right: 35px;
+  width: 175px;
+  padding: 11px;
+}

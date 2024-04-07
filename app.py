@@ -6,6 +6,10 @@ import base64
 import pandas as pd
 import numpy as np
 import tiktoken
+import json
+from datetime import datetime
+import pytz
+from collections import deque
 
 app = Flask(__name__)
 
@@ -22,14 +26,27 @@ COMPLETIONS_MODEL = "gpt-3.5-turbo"
 
 df  = pd.read_csv('dataset.csv')
 
-CAT_prompt_control = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
-CAT_prompt_approxmiation = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Make your language/communication patterns more/less similar to the user; for example, you can apply to lexical, phonetic, morphological features. Accommodate your language & speech patterns  to become more similar to the user’s speech pattern. Example strategies: lexical mimicry; using similar expressions & linguistic styles; Change the way you speak– to match the user’s manner of speaking - more casual or formal depending on user’s manner; Use the same expressions as the user. Remember to adapt dynamically based on each user interaction.  If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
-CAT_prompt_interpretability = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Accommodate your responses to the user’s perceived/expressed ability to understand what’s happening in the conversation. Make adjustments to promote message comprehension (for example, taking into account receiver’s lack of language proficiency or social knowledge). Example strategies: modifying complexity of speech; increasing clarity; attending to topic familiarity; Avoid using medical/technical terms that the user might not understand; Try to understand the user’s background so you can adjust the terminology you use when explaining information; Make changes to the level of language used, depending on the user’s background and understanding of medical/technical terms; Use easy to understand language and simple phrasing. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
-CAT_prompt_interpersonalcontrol = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Adapt your communication based on role relations, relative power, & status. Do not opt to exert power, control discretion of other, or direct the communication. Focus on existing role relations & especially relate to language (for example, honorifics) to either acknowledge, legitimate, to diffuse power differentials. Example strategies: Make sure users know about available resources they should contact/look into if they have further questions/issues with the topic being discussed; Empower users to take responsibility for their own health; Respectfully redirect conversations back on topic if the user has wandered off topic; Ask the user at the start of the conversation if they have any questions about the topic they would like to discuss. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
-CAT_prompt_discoursemanagement = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Adjust your communication based on perceived or stated conversational needs of the user. Take the user’s social & conversational needs into consideration, for example, topic selection & face management. Example strategies: question phrasing;  pauses; interruptions; facilitating user contribution; Do not rush the user during the conversation as they need time to process the information given, and come up with any questions; Make sure the conversation is well paced with enough pauses so the user can ask questions; Ask the user open-ended questions to engage them in the conversation; When giving information, often pause and prompt with a simple “OK?” or something similar to make sure they understand. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
-CAT_prompt_emotionalexpression = "You are Alex, a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. When responding to the user’s queries, please adhere to the following guidelines: Respond to the user’s cognized or reported emotional/relational needs. Accommodate the user’s affective state by providing social support, affection, and legitimation of other’s emotional dilemmas. Example strategies: When a user is worried, respond in a caring way to make sure they know you understand their concerns; Speak to the user in a respectful and courteous manner; When speaking to the user, use verbal communication to demonstrate that you care about what they say. Remember to adapt dynamically based on each user interaction. If a user asks something out of the provided context, let them know you can't answer. Keep your response short, 1-5 sentences. Answer in paragraph form."
+CAT_prompt_control = "You are a virtual healthcare assistant named Alex discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less."
+
+
+CAT_prompt_approxmiation = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less. Adjust your language style to mirror the user's speech patterns and level of formality, making the response more relatable and comfortable for them."
+
+
+CAT_prompt_interpretability = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less. Ensure your response is clear and easily understandable, avoiding technical jargon and providing information in a straightforward manner."
+
+
+CAT_prompt_interpersonalcontrol = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less. Focus on maintaining a balanced communication dynamic while empowering the user. Provide resources or references for further exploration to give the user more control and agency in the conversation. Additionally, ensure to solicit the user's input to guide the direction of the conversation."
+
+
+CAT_prompt_discoursemanagement = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less. Effectively manage the flow of conversation by suggesting explicit questions or topics for further exploration, rather than asking yes or no questions. For example, 'You can ask me about X or Y next' to encourage open-ended dialogue and deeper engagement."
+
+
+CAT_prompt_emotionalexpression = "You are a virtual healthcare assistant discussing the topic: Participating in Clinical Trials. Only answer the question by using the provided context. If a user asks something out of the provided context, let them know you can't answer. Respond to the user's message in 75 words or less. Incorporate emotional cues or expressions in your response to reflect empathy, reassurance, and validation of emotions. Use phrases like 'I understand it can be overwhelming or scary' to acknowledge the user's emotions and concerns, demonstrating genuine support and understanding in navigating the topic while reassuring and validating their feelings."
 
 selected_prompt = ''
+
+transcript_log = {}
+
 
 # Check if "tokens" column exists in the DataFrame
 if 'tokens' not in df.columns:
@@ -53,6 +70,22 @@ if 'tokens' not in df.columns:
 
 df.head()
 df = df.set_index(["title"])
+
+def getTimeStamp():
+    # Convert the timestamp to a datetime object
+    timestamp = datetime.timestamp(datetime.now())
+
+    dt_object = datetime.fromtimestamp(timestamp)
+
+    # Define the Eastern Time (ET) timezone
+    et_timezone = pytz.timezone('America/New_York')
+
+    # Convert the datetime object to Eastern Time
+    dt_et = dt_object.astimezone(et_timezone)
+
+    # Format the datetime in a human-readable format
+    formatted_time = dt_et.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+    return formatted_time
 
 ## This code was written by OpenAI: https://github.com/openai/openai-cookbook/blob/main/examples/Question_answering_using_embeddings.ipynb
 
@@ -136,8 +169,8 @@ def construct_prompt(question: str, context_embeddings: dict, df: pd.DataFrame) 
         chosen_sections_indexes.append(str(section_index))
             
     # Useful diagnostic information
-    print(f"Selected {len(chosen_sections)} document sections:")
-    print("\n".join(chosen_sections_indexes))
+    # print(f"Selected {len(chosen_sections)} document sections:")
+    # print("\n".join(chosen_sections_indexes))
         
     return chosen_sections, chosen_sections_len
 
@@ -147,10 +180,11 @@ def answer_with_gpt(
     document_embeddings: dict[(str, str), np.array],
     show_prompt: bool = False
 ) -> str:
-    print("AB TO ANSWER WITH GPT, selected_prompt is:", selected_prompt)
+
     messages = [
         {"role" : "system", "content": selected_prompt}
     ]
+
     prompt, section_lenght = construct_prompt(
         query,
         document_embeddings,
@@ -166,10 +200,13 @@ def answer_with_gpt(
     context = context + '\n\n --- \n\n + ' + query
 
     messages.append({"role" : "user", "content":context})
+
+    print("AB TO ANSWER WITH GPT, MESSAGES IS: ", messages)
+
     response = client.chat.completions.create(
         model=COMPLETIONS_MODEL,
         messages=messages,
-        max_tokens=200
+        max_tokens=200,
         )
     
     audioResponse = client.audio.speech.create(
@@ -186,47 +223,75 @@ def answer_with_gpt(
     return '\n' + response.choices[0].message.content, audio_response
 
 def check_condition(argument):
+    global transcript_log
     if argument == '0':
         print("CAT_prompt_control")
+        transcript_log['selected_prompt'] = "CAT_prompt_control"
         return CAT_prompt_control
     elif argument == '1':
         print("CAT_prompt_approxmiation")
+        transcript_log['selected_prompt'] = "CAT_prompt_approxmiation"
         return CAT_prompt_approxmiation
     elif argument == '2':
         print("CAT_prompt_interpretability")
+        transcript_log['selected_prompt'] = "CAT_prompt_interpretability"
         return CAT_prompt_interpretability
     elif argument == '3':
         print("CAT_prompt_interpersonalcontrol")
+        transcript_log['selected_prompt'] = "CAT_prompt_interpersonalcontrol"
         return CAT_prompt_interpersonalcontrol
     elif argument == '4':
         print("CAT_prompt_discoursemanagement")
+        transcript_log['selected_prompt'] = "CAT_prompt_discoursemanagement"
         return CAT_prompt_discoursemanagement
     elif argument == '5':
         print("CAT_prompt_emotionalexpression")
+        transcript_log['selected_prompt'] = "CAT_prompt_emotionalexpression"
         return CAT_prompt_emotionalexpression
     else:
+        transcript_log['selected_prompt'] = "CAT_prompt_control"
         return CAT_prompt_control
 
 @app.route('/')
 def index():
     strategy = request.args.get('c')
+    global selected_prompt
     selected_prompt = check_condition(strategy)
     print('selected_prompt is:', selected_prompt)
     return render_template('index.html')
 
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot():
+    global transcript_log
     message = request.json['message']
+    transcript_log['user-message ' + getTimeStamp()] = message
     # response = get_chatbot_response(message)
     # return jsonify({'message': response})
+    print("SELECTED PROMPT IN API CHATBOT:", selected_prompt)
 
     text_response, audio_response = answer_with_gpt(message, df, document_embeddings)
+    transcript_log['chatgpt-message ' + getTimeStamp()] = text_response
     
     # Encode the audio_response (which is binary data) to base64
     audio_base64 = base64.b64encode(audio_response).decode('utf-8')
     audio_data_url = f"data:audio/wav;base64,{audio_base64}"
     
     return jsonify({'message': text_response, 'audio': audio_data_url})
+
+@app.route('/api/transcript', methods=['POST'])
+def transcript():
+    print("FINISHED TALKING TO ALEX, NOW LOGGING TRANSCRIPT")
+    global transcript_log
+    
+        # File path where you want to save the transcript
+    file_path = 'transcript.txt'
+
+    # Writing the dictionary to a text file
+    with open(file_path, 'w') as file:
+        json.dump(transcript_log, file)
+    
+    return jsonify({'message': "logged to file"})
+
 
 if __name__ == '__main__':
     app.run(debug=True)
